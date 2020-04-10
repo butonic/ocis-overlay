@@ -15,6 +15,8 @@ import (
 
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
+
+	"github.com/butonic/ocis-overlay/overlay"
 )
 
 var (
@@ -73,7 +75,10 @@ func main() {
 
 	log.Println("mounted!")
 
-	err = fs.Serve(c, newFS())
+	err = fs.Serve(c, overlay.NewFS(
+		inMemoryXattr,
+		latency,
+	))
 	if err != nil {
 		log.Fatal(err)
 	}

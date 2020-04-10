@@ -4,7 +4,7 @@
 
 // +build darwin,386
 
-package main
+package overlay
 
 import (
 	"syscall"
