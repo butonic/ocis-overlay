@@ -1,2 +1,4 @@
-# loopback
-A loopback filesystem using bazil.org/fuse
+# ocis-overlay
+An overlay filesystem using bazil.org/fuse, based on https://github.com/keybase/loopback
+
+

@@ -49,9 +49,9 @@ type FS struct {
 	nodes map[string][]*Node // realPath -> nodes
 }
 
-func newFS(rootPath string) *FS {
+func newFS() *FS {
 	return &FS{
-		rootPath: rootPath,
+		rootPath: ".",
 		xattrs:   make(map[string]map[string][]byte),
 		nodes:    make(map[string][]*Node),
 	}
@@ -647,7 +647,7 @@ func (n *Node) Getxattr(ctx context.Context,
 			return nil
 		}
 	}
-	return fuse.ENOATTR
+	return fuse.ENODATA
 }
 
 var _ fs.NodeListxattrer = (*Node)(nil)
@@ -741,7 +741,7 @@ func (n *Node) Removexattr(ctx context.Context,
 			return nil
 		}
 	}
-	return fuse.ENOATTR
+	return fuse.ENODATA
 }
 
 var _ fs.NodeForgetter = (*Node)(nil)

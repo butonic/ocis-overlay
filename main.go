@@ -32,7 +32,7 @@ func init() {
 
 func usage() {
 	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
-	fmt.Fprintf(os.Stderr, "  %s ROOT MOUNTPOINT\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "  %s ROOT\n", os.Args[0])
 	flag.PrintDefaults()
 }
 
@@ -40,18 +40,25 @@ func main() {
 	flag.Usage = usage
 	flag.Parse()
 
-	if flag.NArg() != 2 {
+	if flag.NArg() != 1 {
 		usage()
 		os.Exit(2)
 	}
-	mountpoint := flag.Arg(1)
+	mountpoint := flag.Arg(0)
+
+	if err := os.Chdir(mountpoint); err != nil {
+		log.Fatal(err)
+	}
+
+	log.Println("changed into dir!")
 
 	c, err := fuse.Mount(
-		mountpoint,
-		fuse.FSName("loopback"),
-		fuse.Subtype("loopback-fs"),
-		fuse.VolumeName("goLoopback"),
-		fuse.AllowRoot(),
+		".",
+		fuse.FSName("ocis-overlay"),
+		fuse.Subtype("ocis-overlay-fs"),
+		fuse.VolumeName("OCISOverlay"),
+		fuse.AllowNonEmptyMount(),
+		fuse.AllowOther(),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -66,7 +73,7 @@ func main() {
 
 	log.Println("mounted!")
 
-	err = fs.Serve(c, newFS(flag.Arg(0)))
+	err = fs.Serve(c, newFS())
 	if err != nil {
 		log.Fatal(err)
 	}
