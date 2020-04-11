@@ -10,13 +10,13 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"sort"
 	"sync"
 	"syscall"
 	"time"
 
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
+	"github.com/pkg/xattr"
 	"golang.org/x/net/context"
 )
 
@@ -390,24 +390,16 @@ var _ fs.NodeGetxattrer = (*Node)(nil)
 func (n *Node) Getxattr(ctx context.Context,
 	req *fuse.GetxattrRequest, resp *fuse.GetxattrResponse) (err error) {
 	time.Sleep(n.fs.latency)
-	if !n.fs.inMemoryXattr {
-		return fuse.ENOTSUP
-	}
 
 	defer func() {
-		log.Printf("%s.Getxattr(%s): error=%v", n.getRealPath(), req.Name, err)
+		log.Printf("%s.Getxattr(%s): error=%#v", n.getRealPath(), req.Name, err)
 	}()
-	n.fs.xlock.RLock()
-	defer n.fs.xlock.RUnlock()
-	if x := n.fs.xattrs[n.getRealPath()]; x != nil {
 
-		var ok bool
-		resp.Xattr, ok = x[req.Name]
-		if ok {
-			return nil
-		}
+	if resp.Xattr, err = xattr.Get(n.getRealPath(), req.Name); err != nil {
+		return translateError(unpackSysErr(err))
 	}
-	return fuse.ENODATA
+	// TODO if no data is available / attr not set return fuse.ENODATA
+	return nil
 }
 
 var _ fs.NodeListxattrer = (*Node)(nil)
@@ -416,36 +408,17 @@ var _ fs.NodeListxattrer = (*Node)(nil)
 func (n *Node) Listxattr(ctx context.Context,
 	req *fuse.ListxattrRequest, resp *fuse.ListxattrResponse) (err error) {
 	time.Sleep(n.fs.latency)
-	if !n.fs.inMemoryXattr {
-		return fuse.ENOTSUP
-	}
 
 	defer func() {
 		log.Printf("%s.Listxattr(%d,%d): error=%v",
 			n.getRealPath(), req.Position, req.Size, err)
 	}()
-	n.fs.xlock.RLock()
-	defer n.fs.xlock.RUnlock()
-	if x := n.fs.xattrs[n.getRealPath()]; x != nil {
-		names := make([]string, 0)
-		for k := range x {
-			names = append(names, k)
-		}
-		sort.Strings(names)
 
-		if int(req.Position) >= len(names) {
-			return nil
-		}
-		names = names[int(req.Position):]
-
-		s := int(req.Size)
-		if s == 0 || s > len(names) {
-			s = len(names)
-		}
-		if s > 0 {
-			resp.Append(names[:s]...)
-		}
+	var names []string
+	if names, err = xattr.List(n.getRealPath()); err != nil {
+		return translateError(unpackSysErr(err))
 	}
+	resp.Append(names...)
 
 	return nil
 }
@@ -456,22 +429,14 @@ var _ fs.NodeSetxattrer = (*Node)(nil)
 func (n *Node) Setxattr(ctx context.Context,
 	req *fuse.SetxattrRequest) (err error) {
 	time.Sleep(n.fs.latency)
-	if !n.fs.inMemoryXattr {
-		return fuse.ENOTSUP
-	}
 
 	defer func() {
 		log.Printf("%s.Setxattr(%s): error=%v", n.getRealPath(), req.Name, err)
 	}()
-	n.fs.xlock.Lock()
-	defer n.fs.xlock.Unlock()
-	if n.fs.xattrs[n.getRealPath()] == nil {
-		n.fs.xattrs[n.getRealPath()] = make(map[string][]byte)
-	}
-	buf := make([]byte, len(req.Xattr))
-	copy(buf, req.Xattr)
 
-	n.fs.xattrs[n.getRealPath()][req.Name] = buf
+	if err = xattr.SetWithFlags(n.getRealPath(), req.Name, req.Xattr, int(req.Flags)); err != nil {
+		return translateError(unpackSysErr(err))
+	}
 	return nil
 }
 
@@ -481,27 +446,16 @@ var _ fs.NodeRemovexattrer = (*Node)(nil)
 func (n *Node) Removexattr(ctx context.Context,
 	req *fuse.RemovexattrRequest) (err error) {
 	time.Sleep(n.fs.latency)
-	if !n.fs.inMemoryXattr {
-		return fuse.ENOTSUP
-	}
 
 	defer func() {
 		log.Printf("%s.Removexattr(%s): error=%v", n.getRealPath(), req.Name, err)
 	}()
-	n.fs.xlock.Lock()
-	defer n.fs.xlock.Unlock()
 
-	name := req.Name
-
-	if x := n.fs.xattrs[n.getRealPath()]; x != nil {
-		var ok bool
-		_, ok = x[name]
-		if ok {
-			delete(x, name)
-			return nil
-		}
+	if err = xattr.Remove(n.getRealPath(), req.Name); err != nil {
+		return translateError(unpackSysErr(err))
 	}
-	return fuse.ENODATA
+
+	return nil
 }
 
 var _ fs.NodeForgetter = (*Node)(nil)

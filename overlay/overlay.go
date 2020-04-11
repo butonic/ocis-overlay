@@ -7,10 +7,13 @@
 package overlay
 
 import (
+	"log"
 	"os"
+	"syscall"
 	"time"
 
 	"bazil.org/fuse"
+	"github.com/pkg/xattr"
 )
 
 const (
@@ -28,4 +31,17 @@ func translateError(err error) error {
 	default:
 		return err
 	}
+}
+
+// unpackSysErr unpacks the underlying syscall.Errno from an error value
+// returned by Get/Set/...
+func unpackSysErr(err error) syscall.Errno {
+	if err == nil {
+		return syscall.Errno(0)
+	}
+	err2, ok := err.(*xattr.Error)
+	if !ok {
+		log.Panicf("cannot unpack err=%#v", err)
+	}
+	return err2.Err.(syscall.Errno)
 }

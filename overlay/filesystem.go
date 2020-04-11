@@ -27,16 +27,14 @@ type FS struct {
 	nlock sync.Mutex
 	nodes map[string][]*Node // realPath -> nodes
 
-	inMemoryXattr bool
 	latency time.Duration
 }
 
-func NewFS(inMemoryXattr bool, latency time.Duration) *FS {
+func NewFS(latency time.Duration) *FS {
 	return &FS{
 		rootPath: ".",
 		xattrs:   make(map[string]map[string][]byte),
 		nodes:    make(map[string][]*Node),
-		inMemoryXattr: inMemoryXattr,
 		latency:  latency,
 	}
 }

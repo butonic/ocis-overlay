@@ -20,14 +20,10 @@ import (
 )
 
 var (
-	inMemoryXattr bool
-	latency       time.Duration
+	latency time.Duration
 )
 
 func init() {
-	flag.BoolVar(&inMemoryXattr, "in-memory-xattr", false,
-		"use an in-memory implementation for xattr. Otherwise,\n"+
-			"fall back to the ._ file approach provided by osxfuse.")
 	flag.DurationVar(&latency, "latency", 0,
 		"add an artificial latency to every fuse handler on every call")
 }
@@ -76,7 +72,6 @@ func main() {
 	log.Println("mounted!")
 
 	err = fs.Serve(c, overlay.NewFS(
-		inMemoryXattr,
 		latency,
 	))
 	if err != nil {
